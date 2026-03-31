@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarea 3 - Cifrado RSA & Auditoría</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container" id="auth-container">
+        <header>
+            <h1>🔒 RSA Secure Message</h1>
+            <p>Análisis de Sistemas - Tarea 3</p>
+        </header>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('login')">Ingresar</button>
+                <button class="tab-btn" onclick="showTab('register')">Registrarse</button>
+            </div>
+
+            <div id="login-form" class="tab-content active">
+                <h2>Iniciar Sesión</h2>
+                <input type="text" id="login-user" placeholder="Usuario">
+                <input type="password" id="login-pass" placeholder="Contraseña">
+                <button class="btn-primary" onclick="login()">Entrar</button>
+            </div>
+
+            <div id="register-form" class="tab-content">
+                <h2>Crear Cuenta</h2>
+                <input type="text" id="reg-user" placeholder="Nuevo Usuario">
+                <input type="password" id="reg-pass" placeholder="Contraseña">
+                <button class="btn-secondary" onclick="register()">Registrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container hidden" id="app-container">
+        <header>
+            <div class="header-content">
+                <h1>Hola, <span id="user-display">Usuario</span></h1>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <section class="main-sections">
+            <!-- Sección Cifrar -->
+            <div class="card encrypt-card">
+                <h2>Cifrar Nuevo Texto</h2>
+                <textarea id="encrypt-text" placeholder="Escribe el mensaje secreto aquí..."></textarea>
+                <div class="config-row">
+                    <label for="bit-size">Longitud de Llave (Bits):</label>
+                    <select id="bit-size">
+                        <option value="1024">1024 bits</option>
+                        <option value="2048" selected>2048 bits</option>
+                        <option value="4096">4096 bits</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="encryptMessage()">Cifrar y Generar Token</button>
+            </div>
+
+            <!-- Sección Descifrar (Público) -->
+            <div class="card decrypt-card">
+                <h2>Descifrar Token</h2>
+                <div class="input-inline">
+                    <input type="text" id="token-input" placeholder="INGRESA EL TOKEN AQUÍ">
+                    <button class="btn-secondary" onclick="decryptWithToken()">Descifrar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Historial -->
+        <section class="history-section">
+            <h2>Mi Historial de Cifrado</h2>
+            <div id="history-list" class="history-grid">
+                <!-- Se llenará con JS -->
+                <p class="empty-msg">No hay registros aún.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modales -->
+    <div id="modal-result" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modal-result')">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
