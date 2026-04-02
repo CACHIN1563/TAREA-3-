@@ -211,3 +211,43 @@ textarea { min-height: 100px; }
     text-decoration: underline;
     margin-top: 5px;
 }
+
+/* Filtros Historial */
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-header .btn-secondary {
+    width: auto;
+    padding: 5px 15px;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.filter-btn {
+    padding: 5px 15px;
+    border: 1px solid var(--border);
+    background: var(--bg-page);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.filter-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
