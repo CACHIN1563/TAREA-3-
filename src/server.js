@@ -52,10 +52,10 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Cifrar Mensaje
 app.post('/api/messages', authenticate, async (req, res) => {
-    const { texto, bits } = req.body;
-    const bitSize = parseInt(bits) || 2048;
+    const { texto } = req.body;
+    // Forzamos 2048 bits para ocultar la opción al usuario
+    const bitSize = 2048;
 
     // 1. Generar Llaves
     const keys = generateKeyPair(bitSize);
@@ -70,8 +70,8 @@ app.post('/api/messages', authenticate, async (req, res) => {
     );
     const mensajeId = result.lastID;
 
-    // 4. Generar Token
-    const tokenValor = uuidv4().substring(0, 8).toUpperCase();
+    // 4. Generar Token (Más seguro, 12 caracteres alfanuméricos)
+    const tokenValor = uuidv4().replace(/-/g, '').substring(0, 12).toUpperCase();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 1 semana
 
@@ -105,6 +105,19 @@ app.get('/api/messages', authenticate, async (req, res) => {
 app.get('/api/messages/:id/audit', authenticate, async (req, res) => {
     const logs = await db.all('SELECT * FROM auditoria WHERE id_mensaje = ? ORDER BY timestamp DESC', [req.params.id]);
     res.json(logs);
+});
+
+// Descifrar propio (Solo para el dueño)
+app.get('/api/messages/:id/decrypt_owner', authenticate, async (req, res) => {
+    const msg = await db.get('SELECT * FROM mensajes WHERE id = ? AND id_usuario = ?', [req.params.id, req.user.id]);
+    if (!msg) return res.status(404).json({ error: 'Mensaje no encontrado o no eres el dueño' });
+
+    try {
+        const originalText = decryptText(msg.contenido_cifrado, msg.llave_privada);
+        res.json({ texto: originalText });
+    } catch (err) {
+        res.status(500).json({ error: 'Error al descifrar' });
+    }
 });
 
 // Descifrar (Público mediante Token)
@@ -143,10 +156,17 @@ app.get('/api/decrypt/:token', async (req, res) => {
     // Marcar como usado
     await db.run('UPDATE tokens SET es_usado = 1 WHERE id = ?', [tokenData.id]);
 
-    // Registrar Auditoría
+    // Registrar Auditoría con mayores metadatos
+    const metaDatos = JSON.stringify({
+        agent: req.headers['user-agent'],
+        lang: req.headers['accept-language'],
+        host: req.headers['host'],
+        origen: req.headers['origin'] || req.headers['referer'] || 'Directo'
+    });
+
     await db.run(
         'INSERT INTO auditoria (id_mensaje, accion, ip_origen, user_agent, detalles) VALUES (?, ?, ?, ?, ?)',
-        [tokenData.id_mensaje, 'LECTURA', req.ip, req.headers['user-agent'], 'Descifrado exitoso']
+        [tokenData.id_mensaje, 'LECTURA', req.ip, req.headers['user-agent'], `Descifrado exitoso. Meta: ${metaDatos}`]
     );
 
     res.json({
@@ -156,13 +176,13 @@ app.get('/api/decrypt/:token', async (req, res) => {
     });
 });
 
-// Inactivar Mensaje
+// Inactivar Mensaje (Borrado Lógico)
 app.put('/api/messages/:id/inactivate', authenticate, async (req, res) => {
     await db.run('UPDATE mensajes SET activo = 0 WHERE id = ? AND id_usuario = ?', [req.params.id, req.user.id]);
     
     await db.run(
         'INSERT INTO auditoria (id_mensaje, accion, ip_origen, user_agent, detalles) VALUES (?, ?, ?, ?, ?)',
-        [req.params.id, 'INACTIVACION', req.ip, req.headers['user-agent'], 'Mensaje inactivado por el usuario']
+        [req.params.id, 'INACTIVACION', req.ip, req.headers['user-agent'], 'Mensaje eliminado lógicamente por el propietario']
     );
 
     res.json({ message: 'Mensaje inactivado' });
