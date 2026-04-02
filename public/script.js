@@ -1,5 +1,7 @@
 let token = localStorage.getItem('rsa_token') || null;
 let user = JSON.parse(localStorage.getItem('rsa_user')) || null;
+let allMessages = [];
+let currentFilter = 'all';
 
 const API_URL = ''; // Relative to the server
 
@@ -65,7 +67,6 @@ function logout() {
 
 async function encryptMessage() {
     const texto = document.getElementById('encrypt-text').value;
-    const bits = document.getElementById('bit-size').value;
     if (!texto) return alert('Escribe algo');
 
     const res = await fetch(`${API_URL}/api/messages`, {
@@ -74,7 +75,7 @@ async function encryptMessage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ texto, bits })
+        body: JSON.stringify({ texto, bits: 2048 }) // Se envía por defecto, aunque backend lo ignora
     });
     const data = await res.json();
     if (res.ok) {
@@ -84,6 +85,7 @@ async function encryptMessage() {
                 <p>Comparte este token para que alguien pueda leerlo una sola vez:</p>
                 <div class="token-display">${data.token}</div>
                 <button class="btn-copy" onclick="copyToken('${data.token}')">Copiar al portapapeles</button>
+                <a href="mailto:?subject=Mensaje Cifrado Confidencial&body=Tengo un mensaje cifrado para ti. Ingresa a la plataforma y usa este Token para descifrarlo:%0A%0A${data.token}" class="btn-secondary" style="display:inline-block; text-align:center; text-decoration:none; margin-top:10px;">📧 Enviar Token por Correo</a>
                 <p class="warning-txt">⚠️ El token expirará en 7 días y solo sirve para 1 lectura.</p>
             </div>
         `);
@@ -97,15 +99,33 @@ async function loadHistory() {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     const messages = await res.json();
+    allMessages = messages;
+    renderHistory();
+}
+
+function applyFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    renderHistory();
+}
+
+async function renderHistory() {
     const container = document.getElementById('history-list');
     container.innerHTML = '';
 
-    if (messages.length === 0) {
-        container.innerHTML = '<p class="empty-msg">No hay registros aún.</p>';
+    let limitador = allMessages;
+    
+    if (currentFilter === 'unread') limitador = allMessages.filter(m => m.activo && !m.es_usado);
+    if (currentFilter === 'read') limitador = allMessages.filter(m => m.es_usado);
+    if (currentFilter === 'deleted') limitador = allMessages.filter(m => !m.activo);
+
+    if (limitador.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No hay registros aún para esta vista.</p>';
         return;
     }
 
-    messages.forEach(async msg => {
+    limitador.forEach(async msg => {
         const auditRes = await fetch(`${API_URL}/api/messages/${msg.id}/audit`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -116,12 +136,11 @@ async function loadHistory() {
         card.innerHTML = `
             <div class="card-header">
                 <span class="badge ${msg.activo ? (msg.es_usado ? 'badge-used' : 'badge-active') : 'badge-inactive'}">
-                    ${msg.activo ? (msg.es_usado ? 'USADO' : 'ACTIVO') : 'INACTIVO'}
+                    ${msg.activo ? (msg.es_usado ? 'USADO/LEÍDO' : 'DISPONIBLE') : 'ELIMINADO'}
                 </span>
                 <span class="date">${new Date(msg.fecha_creacion).toLocaleDateString()}</span>
             </div>
             <h3>Token: <code>${msg.token_valor}</code></h3>
-            <p class="bits">Cifrado: RSA ${msg.bits} bits</p>
             
             <div class="audit-logs">
                 <strong>Auditoría:</strong>
@@ -131,15 +150,61 @@ async function loadHistory() {
                     </div>
                 `).join('')}
             </div>
-
-            ${msg.activo ? `<button class="btn-small-danger" onclick="inactivate(${msg.id})">Inactivar</button>` : ''}
+            
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <button class="btn-secondary" style="width:auto; padding:5px 15px; font-size:0.8rem;" onclick="viewMyContent(${msg.id})">👁️ Ver Contenido</button>
+                ${msg.activo ? `<button class="btn-small-danger" style="margin-top:0;" onclick="inactivate(${msg.id})">🗑️ Eliminar</button>` : ''}
+            </div>
         `;
         container.appendChild(card);
     });
 }
 
+function exportHistory() {
+    if (allMessages.length === 0) return alert('No hay historial para exportar.');
+    
+    let content = "REPORTE DE HISTORIAL DE CIFRADO\n================================\n\n";
+    allMessages.forEach(msg => {
+        let estado = msg.activo ? (msg.es_usado ? 'USADO/LEÍDO' : 'DISPONIBLE') : 'ELIMINADO';
+        content += `Fecha: ${new Date(msg.fecha_creacion).toLocaleString()}\n`;
+        content += `Token: ${msg.token_valor}\n`;
+        content += `Estado: ${estado}\n`;
+        content += `--------------------------------\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Historial_Cifrado_${new Date().getTime()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function viewMyContent(id) {
+    const res = await fetch(`${API_URL}/api/messages/${id}/decrypt_owner`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+        showModal(`
+            <div class="decrypt-result">
+                <h3>Tu Mensaje Original</h3>
+                <div class="original-text">${data.texto}</div>
+                <hr>
+                <p><small>Este es tu texto propietario, puedes verlo cuantas veces quieras.</small></p>
+            </div>
+        `);
+    } else {
+        alert(data.error || 'Error al obtener tu mensaje');
+    }
+}
+
+
 async function inactivate(id) {
-    if (!confirm('¿Deseas inactivar este mensaje? Ya no podrá ser descifrado.')) return;
+    if (!confirm('¿Deseas eliminar este mensaje? Ya no podrá ser descifrado por terceros.')) return;
     const res = await fetch(`${API_URL}/api/messages/${id}/inactivate`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
