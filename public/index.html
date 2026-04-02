@@ -49,15 +49,7 @@
             <div class="card encrypt-card">
                 <h2>Cifrar Nuevo Texto</h2>
                 <textarea id="encrypt-text" placeholder="Escribe el mensaje secreto aquí..."></textarea>
-                <div class="config-row">
-                    <label for="bit-size">Longitud de Llave (Bits):</label>
-                    <select id="bit-size">
-                        <option value="1024">1024 bits</option>
-                        <option value="2048" selected>2048 bits</option>
-                        <option value="4096">4096 bits</option>
-                    </select>
-                </div>
-                <button class="btn-primary" onclick="encryptMessage()">Cifrar y Generar Token</button>
+                <button class="btn-primary" style="margin-top: 15px;" onclick="encryptMessage()">Cifrar y Generar Token</button>
             </div>
 
             <!-- Sección Descifrar (Público) -->
@@ -72,7 +64,16 @@
 
         <!-- Historial -->
         <section class="history-section">
-            <h2>Mi Historial de Cifrado</h2>
+            <div class="history-header">
+                <h2>Mi Historial de Cifrado</h2>
+                <button class="btn-secondary" onclick="exportHistory()">📥 Exportar (TXT)</button>
+            </div>
+            <div class="filters">
+                <button class="filter-btn active" onclick="applyFilter('all')">Todos</button>
+                <button class="filter-btn" onclick="applyFilter('unread')">No Leídos</button>
+                <button class="filter-btn" onclick="applyFilter('read')">Leídos</button>
+                <button class="filter-btn" onclick="applyFilter('deleted')">Eliminados</button>
+            </div>
             <div id="history-list" class="history-grid">
                 <!-- Se llenará con JS -->
                 <p class="empty-msg">No hay registros aún.</p>
